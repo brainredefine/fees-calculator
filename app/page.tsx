@@ -1,44 +1,49 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+
+type LeaseType = "new" | "renewal" | "other";
 
 /* ===== Helpers ===== */
-function tieredRateSum(months) {
+function toNum(s: string): number {
+  if (!s) return 0;
+  return Number(s.replace(/,/g, "."));
+}
+function tieredRateSum(months: number): number {
   const m1 = Math.min(months, 60);
   const m2 = Math.min(Math.max(months - 60, 0), 60);
   const m3 = Math.max(months - 120, 0);
   return m1 * 0.035 + m2 * 0.0275 + m3 * 0.025;
 }
+const fmt = (n: number) =>
+  new Intl.NumberFormat(undefined, { style: "currency", currency: "EUR" }).format(n || 0);
 
 /* ===== Page ===== */
 export default function Page() {
-  const [rent, setRent] = useState("10000");
-  const [months, setMonths] = useState("12");
-  const [type, setType] = useState("new"); // "new" | "renewal" | "other"
-  const [capex, setCapex] = useState("");
+  const [rent, setRent] = useState<string>("10000");
+  const [months, setMonths] = useState<string>("12");
+  const [type, setType] = useState<LeaseType>("new");
+  const [capex, setCapex] = useState<string>("");
 
-  const parsed = {
-    rent: Number((rent || "").replace(/,/g, ".")) || 0,
-    months: Math.max(0, Math.floor(Number(months))) || 0,
-    capex: Math.max(0, Number((capex || "").replace(/,/g, ".")) || 0),
-  };
+  // valeurs numériques stables → pas d’avertissement eslint sur parsed
+  const rentVal = toNum(rent);
+  const monthsVal = Math.max(0, Math.floor(toNum(months)));
+  const capexVal = Math.max(0, toNum(capex));
 
-  const fee = useMemo(() => {
-    const { rent, months, capex } = parsed;
-    if (!rent || !months) return 0;
+  const fee = useMemo<number>(() => {
+    if (!rentVal || !monthsVal) return 0;
 
     if (type !== "new") {
-      return Math.max(0, months * rent - capex) * 0.01; // 1%
+      // 1% × (months × rent − capex)
+      return Math.max(0, monthsVal * rentVal - capexVal) * 0.01;
     }
 
-    const sum = tieredRateSum(months);
-    const feeOnRent = rent * sum;
-    const effectiveRate = months > 0 ? sum / months : 0;
-    const feeOnCapex = capex * effectiveRate;
+    // NEW: 3.5% (0-60), 2.75% (61-120), 2.5% (>120) ; capex déduit au taux moyen pondéré
+    const sum = tieredRateSum(monthsVal); // somme des (mois × taux)
+    const feeOnRent = rentVal * sum;
+    const effectiveRate = monthsVal > 0 ? sum / monthsVal : 0;
+    const feeOnCapex = capexVal * effectiveRate;
     return Math.max(0, feeOnRent - feeOnCapex);
-  }, [parsed.rent, parsed.months, parsed.capex, type]);
-
-  const fmt = (n) =>
-    new Intl.NumberFormat(undefined, { style: "currency", currency: "EUR" }).format(n || 0);
+  }, [rentVal, monthsVal, capexVal, type]);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black text-white">
@@ -76,7 +81,7 @@ export default function Page() {
                 </div>
               </Field>
 
-              {/* Segmented control instead of native select */}
+              {/* Segmented control (pas de menu natif blanc) */}
               <Field label="Type">
                 <Segmented
                   value={type}
@@ -109,9 +114,7 @@ export default function Page() {
               Calculate
             </button>
 
-            <div className="mt-6 text-center text-2xl font-semibold md:text-3xl">
-              Fee: {fmt(fee)}
-            </div>
+            <div className="mt-6 text-center text-2xl font-semibold md:text-3xl">{`Fee: ${fmt(fee)}`}</div>
           </div>
         </section>
       </div>
@@ -120,7 +123,7 @@ export default function Page() {
 }
 
 /* ===== UI bits ===== */
-function Field({ label, hint, children }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block">
       <div className="mb-2 text-sm text-zinc-200">{label}</div>
@@ -130,7 +133,15 @@ function Field({ label, hint, children }) {
   );
 }
 
-function Segmented({ value, onChange, options }) {
+function Segmented({
+  value,
+  onChange,
+  options,
+}: {
+  value: LeaseType;
+  onChange: (v: LeaseType) => void;
+  options: { value: LeaseType; label: string }[];
+}) {
   return (
     <div className="flex rounded-xl border border-white/15 bg-white/10 p-1">
       {options.map((opt) => {
@@ -142,9 +153,7 @@ function Segmented({ value, onChange, options }) {
             onClick={() => onChange(opt.value)}
             className={
               "flex-1 rounded-lg px-3 py-2 text-sm transition " +
-              (active
-                ? "bg-white/25 border border-white/20"
-                : "hover:bg-white/15 text-zinc-200")
+              (active ? "bg-white/25 border border-white/20" : "hover:bg-white/15 text-zinc-200")
             }
           >
             {opt.label}
@@ -155,11 +164,11 @@ function Segmented({ value, onChange, options }) {
   );
 }
 
-/* ===== Fancy background (z fixed) ===== */
+/* ===== Fancy background (visible) ===== */
 function HeroBackground() {
   return (
     <>
-      {/* base gradient + vignette */}
+      {/* base gradient + vignettes */}
       <div className="absolute inset-0 z-0 bg-gradient-to-tr from-[#0b0f2e] via-[#081436] to-[#021b3a]" />
       <div className="absolute inset-0 z-0 bg-[radial-gradient(80rem_40rem_at_10%_80%,rgba(255,153,51,0.25),transparent_60%)]" />
       <div className="absolute inset-0 z-0 bg-[radial-gradient(80rem_40rem_at_90%_10%,rgba(64,149,255,0.25),transparent_60%)]" />
@@ -187,7 +196,6 @@ function HeroBackground() {
           </filter>
         </defs>
 
-        {/* cool beams top-right */}
         <path
           d="M900 80C1100 120 1240 200 1400 360"
           stroke="url(#trailCool)"
@@ -206,8 +214,6 @@ function HeroBackground() {
           filter="url(#softGlow)"
           opacity="0.7"
         />
-
-        {/* warm curves bottom-left */}
         <path
           d="M-40 640C120 620 260 610 420 640C640 682 820 780 1100 820"
           stroke="url(#trailWarm)"

@@ -8,14 +8,22 @@ function toNum(s: string): number {
   if (!s) return 0;
   return Number(s.replace(/,/g, "."));
 }
+
 function tieredRateSum(months: number): number {
   const m1 = Math.min(months, 60);
   const m2 = Math.min(Math.max(months - 60, 0), 60);
   const m3 = Math.max(months - 120, 0);
   return m1 * 0.035 + m2 * 0.0275 + m3 * 0.025;
 }
+
+// format en "xxx xxx.xx"
 const fmt = (n: number) =>
-  new Intl.NumberFormat(undefined, { style: "currency", currency: "EUR" }).format(n || 0);
+  (n || 0).toLocaleString("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: true,
+  });
+
 
 /* ===== Page ===== */
 export default function Page() {

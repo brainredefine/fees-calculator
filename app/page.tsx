@@ -16,13 +16,10 @@ function tieredRateSum(months: number): number {
   return m1 * 0.035 + m2 * 0.0275 + m3 * 0.025;
 }
 
-// format en "xxx xxx.xx"
+// format en "xxxxx.xx" (pas d'espace, point décimal)
 const fmt = (n: number) =>
-  (n || 0).toLocaleString("fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    useGrouping: true,
-  });
+  (n || 0).toFixed(2);
+
 
 
 /* ===== Page ===== */

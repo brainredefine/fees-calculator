@@ -20,21 +20,29 @@ function tieredRateSum(months: number): number {
 const fmt = (n: number) =>
   (n || 0).toFixed(2);
 
-
-
 /* ===== Page ===== */
 export default function Page() {
   const [rent, setRent] = useState<string>("10000");
-  const [months, setMonths] = useState<string>("12");
+  
+  // Nouveaux états pour la durée brute et la franchise
+  const [contractLength, setContractLength] = useState<string>("12");
+  const [rentFree, setRentFree] = useState<string>("0");
+
   const [type, setType] = useState<LeaseType>("new");
   const [capex, setCapex] = useState<string>("");
 
-  // valeurs numériques stables → pas d’avertissement eslint sur parsed
+  // Valeurs numériques
   const rentVal = toNum(rent);
-  const monthsVal = Math.max(0, Math.floor(toNum(months)));
+  const contractLengthVal = Math.max(0, Math.floor(toNum(contractLength)));
+  const rentFreeVal = Math.max(0, toNum(rentFree));
   const capexVal = Math.max(0, toNum(capex));
 
+  // Calcul de la durée effective (Duration) pour le backend
+  // Duration = Contract Length - Rent Free Months
+  const monthsVal = Math.max(0, contractLengthVal - rentFreeVal);
+
   const fee = useMemo<number>(() => {
+    // On utilise monthsVal (durée effective) pour tous les calculs
     if (!rentVal || !monthsVal) return 0;
 
     if (type !== "new") {
@@ -60,6 +68,8 @@ export default function Page() {
 
         <section className="mx-auto mt-8 max-w-3xl px-6 pb-14">
           <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl md:p-8">
+            
+            {/* Row 1: Rent & Time inputs */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="Rent (EUR)">
                 <input
@@ -71,12 +81,12 @@ export default function Page() {
                 />
               </Field>
 
-              <Field label="Duration">
+              <Field label="Contract Length">
                 <div className="relative">
                   <input
                     inputMode="numeric"
-                    value={months}
-                    onChange={(e) => setMonths(e.target.value)}
+                    value={contractLength}
+                    onChange={(e) => setContractLength(e.target.value)}
                     className="w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 pr-16 text-white outline-none placeholder:text-zinc-300 focus:border-white/25"
                     placeholder="12"
                   />
@@ -86,7 +96,24 @@ export default function Page() {
                 </div>
               </Field>
 
-              {/* Segmented control (pas de menu natif blanc) */}
+              <Field label="Rent Free">
+                <div className="relative">
+                  <input
+                    inputMode="numeric"
+                    value={rentFree}
+                    onChange={(e) => setRentFree(e.target.value)}
+                    className="w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 pr-16 text-white outline-none placeholder:text-zinc-300 focus:border-white/25"
+                    placeholder="0"
+                  />
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-zinc-300">
+                    months
+                  </span>
+                </div>
+              </Field>
+            </div>
+
+            {/* Row 2: Type & Capex */}
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="Type">
                 <Segmented
                   value={type}
@@ -98,9 +125,7 @@ export default function Page() {
                   ]}
                 />
               </Field>
-            </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="Capex (EUR)">
                 <input
                   inputMode="decimal"
@@ -110,6 +135,15 @@ export default function Page() {
                   placeholder="0"
                 />
               </Field>
+
+              {/* Display calculated effective duration for clarity (Optional, but helpful for debugging/transparency) */}
+              <div className="hidden md:block">
+                 <Field label="Effective Duration" hint="Calculated automatically">
+                    <div className="w-full px-3 py-2 text-zinc-400">
+                        {monthsVal} months
+                    </div>
+                 </Field>
+              </div>
             </div>
 
             <button
